@@ -394,3 +394,24 @@ mod emit_gas_consumption_tests {
         perform_gas_asserts(total_gas_used, "Total gas used", 3184545730536 + 150000000000);
     }
 }
+
+#[near(event_json(standard = "naming_standard"))]
+pub enum NamingEvent {
+    #[event_version("1.0.0")]
+    NFTMint { amount: u64 },
+
+    #[event_version("1.0.0")]
+    #[serde(rename = "mint")]
+    Minted { amount: u64 },
+}
+
+#[test]
+fn test_event_name_matches_emitted_log() {
+    for event in [NamingEvent::NFTMint { amount: 1 }, NamingEvent::Minted { amount: 1 }] {
+        let logged = event.to_json()["event"].as_str().unwrap().to_string();
+        assert_eq!(event.event(), logged);
+        assert_eq!(event.to_nep297_event().event(), logged);
+    }
+    assert_eq!(NamingEvent::NFTMint { amount: 1 }.event(), "n_f_t_mint");
+    assert_eq!(NamingEvent::Minted { amount: 1 }.event(), "mint");
+}

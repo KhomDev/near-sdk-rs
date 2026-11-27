@@ -10,7 +10,6 @@ use proc_macro::TokenStream;
 use self::core_impl::*;
 use darling::ast::NestedMeta;
 use darling::{Error, FromMeta};
-use inflector::Inflector;
 use proc_macro2::{Ident, Span};
 use quote::{ToTokens, quote};
 use syn::{
@@ -707,8 +706,7 @@ pub fn derive_event_attributes(item: TokenStream) -> TokenStream {
                 version_arms.push(quote! {
                     #name::#var_ident { .. } => ::std::borrow::Cow::Borrowed(#version)
                 });
-                let event_name =
-                    proc_macro2::Literal::string(&var.ident.to_string().to_snake_case());
+                let event_name = proc_macro2::Literal::string(&core_impl::get_event_name(var));
                 event_name_arms.push(quote! {
                     #name::#var_ident { .. } => ::std::borrow::Cow::Borrowed(#event_name)
                 });

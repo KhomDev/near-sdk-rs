@@ -83,3 +83,49 @@ pub(crate) fn get_event_version(var: &syn::Variant) -> Option<LitStr> {
     }
     None
 }
+
+/// This function returns the NEP-297 `event` name that serde writes for this variant: the
+/// `#[serde(rename = "...")]` value when present, otherwise the variant name converted with
+/// serde's `rename_all = "snake_case"` rule, which `near_events` injects on the enum.
+/// used by `near_sdk::EventMetadata`
+pub(crate) fn get_event_name(var: &syn::Variant) -> String {
+    for attr in var.attrs.iter() {
+        if !attr.path().is_ident("serde") {
+            continue;
+        }
+        let mut renamed = None;
+        let _ = attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("rename") {
+                if meta.input.peek(syn::Token![=]) {
+                    renamed = Some(meta.value()?.parse::<LitStr>()?.value());
+                } else {
+                    meta.parse_nested_meta(|inner| {
+                        if inner.path.is_ident("serialize") {
+                            renamed = Some(inner.value()?.parse::<LitStr>()?.value());
+                        } else {
+                            let _: syn::Expr = inner.value()?.parse()?;
+                        }
+                        Ok(())
+                    })?;
+                }
+            } else if meta.input.peek(syn::Token![=]) {
+                let _: syn::Expr = meta.value()?.parse()?;
+            } else if meta.input.peek(syn::token::Paren) {
+                let _content;
+                syn::parenthesized!(_content in meta.input);
+            }
+            Ok(())
+        });
+        if let Some(renamed) = renamed {
+            return renamed;
+        }
+    }
+    let mut snake = String::new();
+    for (i, ch) in var.ident.to_string().char_indices() {
+        if i > 0 && ch.is_uppercase() {
+            snake.push('_');
+        }
+        snake.push(ch.to_ascii_lowercase());
+    }
+    snake
+}
